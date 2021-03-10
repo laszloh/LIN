@@ -27,6 +27,7 @@
  *  Can be modified for any Arduino board with UART available and any LIN slave.
  *
  *  Author: Blaž Pongrac B.S., RoboSap, Institute of Technology, Ptuj (www.robosap-institut.eu)
+ *  Author: Laszlo Hegedüs
  *
  *  Arduino IDE 1.6.9
  *  RoboSap, Institute of Technology, September 2016
@@ -41,8 +42,8 @@
 class lin_stack {
 public:
     // Constructors
-    lin_stack(byte Ch);             // Constructor for Master Node
-    lin_stack(byte Ch, byte ident); // Constructor for Slave Node
+    lin_stack(Serial &_channel = Serial1, uint16_t _baud = 19200, int8_t _wakeup_pin = -1,
+              uint8_t _ident = 0); // Constructor for Master and Slave Node
 
     // Methods
 
@@ -55,16 +56,17 @@ public:
     int readStream(byte data[], byte data_size);      // read data from LIN bus
     int setSerial();                                  // set up Seril communication for receiving data.
     int busWakeUp();                                  // send wakeup frame for waking up all bus participants
+    void sleep(bool sleep_state); // method for controlling transceiver modes (false - sleep, true - normal)
 
     // Private methods and variables
 private:
-    const unsigned long bound_rate = 19200; // 10417 is best for LIN Interface, most device should work
-    const unsigned int period = 52;         // in microseconds, 1s/10417
-    byte ch = 0;                            // which channel should be used
-    byte identByte;                         // user defined Identification Byte
-    int sleep(byte sleep_state);      // method for controlling transceiver modes (0 - sleep, 1 - normal)
-    int sleep_config(byte serial_No); // configuration of sleep pins
-    int serial_pause(int no_bits);    // for generating Synch Break
+    const unsigned long baud;  // 10417 is best for LIN Interface, most device should work
+    const unsigned int period; // in microseconds, 1s/10417
+    Serial &channel;           // which channel should be used
+    uint8_t ident;             // user defined Identification Byte
+    int8_t wake_pin;
+    void sleep_config();           // configuration of sleep pins
+    int serial_pause(int no_bits); // for generating Synch Break
     boolean
     validateParity(byte ident); // for validating Identification Byte, can be modified for validating parity
     boolean validateChecksum(byte data[], byte data_size); // for validating Checksum Byte

@@ -50,15 +50,10 @@
 */
 
 // CONSTRUCTORS
-lin_stack::lin_stack(byte Ch) {
-    sleep_config(Ch); // Configurating Sleep pin for transceiver
-    ch = Ch;
-}
-
-lin_stack::lin_stack(byte Ch, byte ident) {
-    sleep_config(Ch);  // Configuration of Sleep pin for transceiver
-    identByte = ident; // saving idet to private variable
-    sleep(1);          // Transceiver is always in Normal Mode
+lin_stack::lin_stack(Serial &_channel, uint16_t _baud, int8_t _wakeup_pin, uint8_t _ident)
+    : channel(_channel), baud(_baud), wake_pin(_wakeup_pin), ident(_ident) {
+    if(wake_pin >= 0)
+        sleep_config(wake_pin); // Configurating Sleep pin for transceiver
 }
 
 // PUBLIC METHODS
@@ -226,7 +221,6 @@ int lin_stack::readStream(byte data[], byte data_size) {
     return 0;
 }
 
-
 // PRIVATE METHODS
 int lin_stack::serial_pause(int no_bits) {
     // Calculate delay needed for 13 bits, depends on bound rate
@@ -254,35 +248,14 @@ int lin_stack::serial_pause(int no_bits) {
     return 1;
 }
 
-int lin_stack::sleep(byte sleep_state) {
-    if(sleep_state == 1) { // Go to Normal mode
-        if(ch == 1)
-            PIOB->PIO_SODR = PIO_PB4; // Set PB4, high state, normal mode
-        if(ch == 2)
-            PIOB->PIO_SODR = PIO_PB7; // Set PB7, high state, normal mode
-    } else if(sleep_state == 0) {     // Go to Sleep mode
-        if(ch == 1)
-            PIOB->PIO_CODR = PIO_PB4; // Clear PB4, low state, sleep mode
-        if(ch == 2)
-            PIOB->PIO_CODR = PIO_PB7; // Clear PB7, low state, sleep mode
-    }
+void lin_stack::sleep(bool sleep_state) {
+    digitalWrite(wake_pin, (sleep_state) ? HIGH : LOW);
     delayMicroseconds(20); // According to TJA1021 datasheet this is needed for proper working
-    return 1;
 }
 
-int lin_stack::sleep_config(byte serial_No) {
-    if(serial_No == 1) {          // When using LIN1 channel - usign Serial1 and pin PB4 for Sleep
-        PIOB->PIO_PER = PIO_PB4;  // enable PIO register on pin PB4
-        PIOB->PIO_OER = PIO_PB4;  // set PB4 as output
-        PIOB->PIO_PUDR = PIO_PB4; // disable pull-up
-        ch = 1;                   // saved as private variable, used for determening Serial port
-    } else if(serial_No == 2) {   // When using LIN2 channel - usign Serial2 and pin PB7 for Sleep
-        PIOB->PIO_PER = PIO_PB7;  // enable PIO register on pin PB7
-        PIOB->PIO_OER = PIO_PB7;  // set PB7 as output
-        PIOB->PIO_PUDR = PIO_PB7; // disable pull-up
-        ch = 2;                   // saved as private variable, used for determening Serial port
-    }
-    return 1;
+void lin_stack::sleep_config() {
+    pinMode(wake_pin, OUTPUT);
+    digitalWrite(wake_pin, LOW);
 }
 
 boolean lin_stack::validateParity(byte ident) {

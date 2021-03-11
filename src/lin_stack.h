@@ -49,24 +49,25 @@ public:
 
     // Writing data to bus
     void write(const uint8_t ident, const void *data, size_t len); // write whole package
-    void writeRequest(const uint8_t ident);                       // Write header only
-    void writeResponse(const void *data, size_t len);   // Write response only
-    void writeStream(const void *data, size_t len);     // Writing user data to LIN bus
-    bool read(uint8_t *data, const size_t len, size_t *read);                  // read data from LIN bus, checksum and ident validation
-    int readStream(const void *data, size_t len);      // read data from LIN bus
-    int busWakeUp();                                  // send wakeup frame for waking up all bus participants
+    void writeRequest(const uint8_t ident);                        // Write header only
+    void writeResponse(const void *data, size_t len);              // Write response only
+    void writeStream(const void *data, size_t len);                // Writing user data to LIN bus
+    bool read(uint8_t *data, const size_t len,
+              size_t *read);                      // read data from LIN bus, checksum and ident validation
+    int readStream(const void *data, size_t len); // read data from LIN bus
+    int busWakeUp();                              // send wakeup frame for waking up all bus participants
     void sleep(bool sleep_state); // method for controlling transceiver modes (false - sleep, true - normal)
     uint8_t calcIdentParity(const uint8_t ident) const;
 
     // Private methods and variables
 private:
-    const uint16_t baud;  // 10417 is best for LIN Interface, most device should work
-    Serial &channel;           // which channel should be used
-    uint8_t ident;             // user defined Identification Byte
+    const uint16_t baud; // 10417 is best for LIN Interface, most device should work
+    Serial &channel;     // which channel should be used
+    uint8_t ident;       // user defined Identification Byte
     int8_t wake_pin;
 
-    void sleep_config();           // configuration of sleep pins
-    void lin_break(); // for generating Synch Break
+    void sleep_config();        // configuration of sleep pins
+    void lin_break();           // for generating Synch Break
     validateParity(byte ident); // for validating Identification Byte, can be modified for validating parity
     bool validateChecksum(const void *data, size_t len); // for validating Checksum Byte
     uint8_t calcChecksum(const void *data, size_t len);

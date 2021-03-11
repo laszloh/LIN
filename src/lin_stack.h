@@ -48,15 +48,15 @@ public:
     // Methods
 
     // Writing data to bus
-    int write(byte addr, byte data[], byte data_size); // write whole package
-    int writeRequest(byte addr);                       // Write header only
-    int writeResponse(byte data[], byte data_size);   // Write response only
-    int writeStream(byte data[], byte data_size);     // Writing user data to LIN bus
-    int read(byte data[], byte data_size);            // read data from LIN bus, checksum and ident validation
-    int readStream(byte data[], byte data_size);      // read data from LIN bus
-    int setSerial();                                  // set up Seril communication for receiving data.
+    void write(const uint8_t ident, const void *data, size_t len); // write whole package
+    void writeRequest(const uint8_t ident);                       // Write header only
+    void writeResponse(const void *data, size_t len);   // Write response only
+    void writeStream(const void *data, size_t len);     // Writing user data to LIN bus
+    bool read(uint8_t *data, const size_t len, size_t *read);                  // read data from LIN bus, checksum and ident validation
+    int readStream(const void *data, size_t len);      // read data from LIN bus
     int busWakeUp();                                  // send wakeup frame for waking up all bus participants
     void sleep(bool sleep_state); // method for controlling transceiver modes (false - sleep, true - normal)
+    uint8_t calcIdentParity(const uint8_t ident) const;
 
     // Private methods and variables
 private:
@@ -68,6 +68,6 @@ private:
     void sleep_config();           // configuration of sleep pins
     void lin_break(); // for generating Synch Break
     validateParity(byte ident); // for validating Identification Byte, can be modified for validating parity
-    bool validateChecksum(byte data[], byte data_size); // for validating Checksum Byte
-    byte calcIdentParity(byte ident);
+    bool validateChecksum(const void *data, size_t len); // for validating Checksum Byte
+    uint8_t calcChecksum(const void *data, size_t len);
 };

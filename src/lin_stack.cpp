@@ -32,6 +32,7 @@
  *  RoboSap, Institute of Technology, September 2016
  */
 
+#include <algorithm>
 #include <lin_stack.h>
 
 /* LIN PACKET:
@@ -42,7 +43,7 @@
    |___________|__________|_______|____________|_________|
 
    Every byte have start bit and stop bit and it is send LSB first.
-   Synch Break - 13 bits of dominant state ("0"), followed by 1 bit recesive state ("1")
+   Synch Break - min 13 bits of dominant state ("0"), followed by 1 bit recesive state ("1")
    Synch Byte - Byte for Bound rate syncronization, always 0x55
    ID Byte - consist of parity, length and address; parity is determined by LIN standard and depends from
    address and message length Data Bytes - user defined; depend on devices on LIN bus Checksum - inverted 256
@@ -59,180 +60,67 @@ lin_stack::lin_stack(Serial &_channel, uint16_t _baud, int8_t _wake_pin, uint8_t
 // PUBLIC METHODS
 // WRITE methods
 // Creates a LIN packet and then send it via USART(Serial) interface.
-int lin_stack::write(byte ident, byte data[], byte data_size) {
-    // Calculate checksum
-    byte suma = 0;
-    for(int i = 0; i < data_size; i++)
-        suma = suma + data[i];
-    // suma = suma + 1;
-    byte checksum = 255 - suma;
-    // Start interface
-    sleep(1); // Go to Normal mode
-    // Synch Break
-    lin_break(13);
-    // Send data via Serial interface
-    if(ch == 1) {                  // For LIN1 or Serial1
-        Serial1.begin(bound_rate); // config Serial
-        Serial1.write(0x55);       // write Synch Byte to serial
-        Serial1.write(ident);      // write Identification Byte to serial
-        for(int i = 0; i < data_size; i++)
-            Serial1.write(data[i]); // write data to serial
-        Serial1.write(checksum);    // write Checksum Byte to serial
-        Serial1.end();              // clear Serial config
-    } else if(ch == 2) {            // For LIN2 or Serial2
-        Serial2.begin(bound_rate);  // config Serial
-        Serial2.write(0x55);        // write Synch Byte to serial
-        Serial2.write(ident);       // write Identification Byte to serialv
-        for(int i = 0; i < data_size; i++)
-            Serial2.write(data[i]); // write data to serial
-        Serial2.write(checksum);    // write Checksum Byte to serial
-        Serial2.end();              // clear Serial config
-    }
-    sleep(0); // Go to Sleep mode
-    return 1;
-}
-
-int lin_stack::writeRequest(byte ident) {
-    // Create Header
-    byte identByte = (ident & 0x3f) | calcIdentParity(ident);
-    byte header[2] = {0x55, identByte};
-    // Start interface
-    sleep(1); // Go to Normal mode
+void lin_stack::write(const uint8_t ident, const void *data, size_t len) {
     // Synch Break
     lin_break();
     // Send data via Serial interface
-    if(ch == 1) {                  // For LIN1 or Serial1
-        Serial1.begin(bound_rate); // config Serial
-        Serial1.write(header, 2);  // write data to serial
-        Serial1.end();             // clear Serial config
-    } else if(ch == 2) {           // For LIN2 or Serial2
-        Serial2.begin(bound_rate); // config Serial
-        Serial2.write(header, 2);  // write data to serial
-        Serial2.end();             // clear Serial config
-    }
-    sleep(0); // Go to Sleep mode
-    return 1;
+    channel.begin(baud);
+    channel.write(0x55);
+    channel.write(ident);
+    channel.write(data, len);
+    channel.write(calcChecksum(data, len));
+    channel.fush();
 }
 
-int lin_stack::writeResponse(byte data[], byte data_size) {
-    // Calculate checksum
-    byte suma = 0;
-    for(int i = 0; i < data_size; i++)
-        suma = suma + data[i];
-    // suma = suma + 1;
-    byte checksum = 255 - suma;
-    // Start interface
-    sleep(1); // Go to Normal mode
-    // Send data via Serial interface
-    if(ch == 1) {                       // For LIN1 or Serial1
-        Serial1.begin(bound_rate);      // config Serial
-        Serial1.write(data, data_size); // write data to serial
-        Serial1.write(checksum);        // write data to serial
-        Serial1.end();                  // clear Serial config
-    } else if(ch == 2) {                // For LIN2 or Serial2
-        Serial2.begin(bound_rate);      // config Serial
-        Serial2.write(data, data_size); // write data to serial
-        Serial2.write(checksum);        // write data to serial
-        Serial2.end();                  // clear Serial config
-    }
-    sleep(0); // Go to Sleep mode
-    return 1;
-}
-
-int lin_stack::writeStream(byte data[], byte data_size) {
-    // Start interface
-    sleep(1); // Go to Normal mode
+int lin_stack::writeRequest(const uint8_t ident) {
     // Synch Break
     lin_break();
     // Send data via Serial interface
-    if(ch == 1) {                  // For LIN1 or Serial1
-        Serial1.begin(bound_rate); // config Serial
-        for(int i = 0; i < data_size; i++)
-            Serial1.write(data[i]);
-        Serial1.end();             // clear Serial config
-    } else if(ch == 2) {           // For LIN2 or Serial2
-        Serial2.begin(bound_rate); // config Serial
-        for(int i = 0; i < data_size; i++)
-            Serial2.write(data[i]);
-        Serial2.end(); // clear Serial config
-    }
-    sleep(0); // Go to Sleep mode
-    return 1;
+    channel.begin(baud);
+    channel.write(0x55);
+    channel.write(ident);
+    channel.flush();
 }
 
-// READ methods
-// Read LIN traffic and then proces it.
-int lin_stack::setSerial() {       // Only needed when receiving signals
-    if(ch == 1) {                  // For LIN1 (Channel 1)
-        Serial1.begin(bound_rate); // Configure Serial1
-        PIOA->PIO_PUER = PIO_PA10; // We need software Pull-Up because there is no hardware Pull-Up resistor
-    } else if(ch == 2) {           // For LIN2 (Channel 2)
-        Serial2.begin(bound_rate); // Configure Serial1
-        PIOA->PIO_PUER = PIO_PA12; // We need software Pull-Up because there is no hardware Pull-Up resistor
-    }
+void lin_stack::writeResponse(const void *data, size_t len) {
+    channel.begin(baud);
+    channel.write(data, len);
+    channel.write(calcChecksum(data, len));
+    channel.flush();
 }
 
-int lin_stack::read(byte data[], byte data_size) {
-    byte rec[data_size + 3];
-    if(ch == 1) {                  // For LIN1 or Serial1
-        if(Serial1.read() != -1) { // Check if there is an event on LIN bus
-            Serial1.readBytes(rec, data_size + 3);
-            if((validateParity(rec[1])) & (validateChecksum(rec, data_size + 3))) {
-                for(int j = 0; j < data_size; j++) {
-                    data[j] = rec[j + 2];
-                }
-                return 1;
-            } else {
-                return -1;
-            }
-        }
-    } else if(ch == 2) {           // For LIN2 or Serial2
-        if(Serial2.read() != -1) { // Check if there is an event on LIN bus
-            Serial2.readBytes(rec, data_size + 3);
-            if((validateParity(rec[1])) & (validateChecksum(rec, data_size + 3))) {
-                for(int j = 0; j < data_size; j++) {
-                    data[j] = rec[j + 2];
-                }
-                return 1;
-            } else {
-                return -1;
-            }
-        }
-    }
-    return 0;
+void lin_stack::writeStream(const void *data, size_t len) {
+    // Synch Break
+    lin_break();
+    // Send data via Serial interface
+    channel.begin(baud);
+    channel.write(0x55);
+    channel.write(ident);
+    channel.write(data, len);
+    channel.flush();
 }
 
-int lin_stack::readStream(byte data[], byte data_size) {
-    byte rec[data_size];
-    if(ch == 1) {                  // For LIN1 or Serial1
-        if(Serial1.read() != -1) { // Check if there is an event on LIN bus
-            Serial1.readBytes(rec, data_size);
-            for(int j = 0; j < data_size; j++) {
-                data[j] = rec[j];
-            }
-            return 1;
-        }
-    } else if(ch == 2) {           // For LIN2 or Serial2
-        if(Serial2.read() != -1) { // Check if there is an event on LIN bus
-            Serial2.readBytes(data, data_size);
-            return 1;
-        }
-    }
-    return 0;
+bool lin_stack::read(uint8_t *data, const size_t len, size_t *read) {
+    size_t loc;
+    if(read == nullptr)
+        read = loc;
+    *read = channel.readBytes(data, len);
+    return (validateParity(data[0]) && validateChecksum(data, std::min(len, *read)));
+}
+
+int lin_stack::readStream(uint8_t *data, size_t len) {
+    return channel.readBytes(data, len);
 }
 
 // PRIVATE METHODS
-void lin_stack::lin_break(uint8_t no_bits) {
-	// send the break field. Since LIN only specifies min 13bit, we'll send 0x00 at half baud
+void lin_stack::lin_break() {
+    // send the break field. Since LIN only specifies min 13bit, we'll send 0x00 at half baud
     channel.flush();
-    channel.begin(baud/2);
+    channel.begin(baud / 2);
 
     // send the break field
     channel.write(0x00);
-
-    // return to the high baud rate
     channel.flush();
-    channel.begin(baud);
 }
 
 void lin_stack::sleep(bool sleep_state) {
@@ -245,23 +133,19 @@ void lin_stack::sleep_config() {
     digitalWrite(wake_pin, LOW);
 }
 
-boolean lin_stack::validateParity(byte ident) {
-    if(ident == identByte)
-        return true;
-    else
-        return false;
+bool lin_stack::validateParity(byte ident) { return (ident == identByte); }
+
+uint8_t lin_stack::calcChecksum(const void *data, size_t len) {
+    uint8_t *p = static_cast<uint8_t *>(data);
+    uint8_t ret = 0;
+    for(auto i = 0; i < data_size; i++)
+        ret += p[i];
+    return ~ret;
 }
 
-boolean lin_stack::validateChecksum(unsigned char data[], byte data_size) {
-    byte checksum = data[data_size - 1];
-    byte suma = 0;
-    for(int i = 2; i < data_size - 1; i++)
-        suma = suma + data[i];
-    byte v_checksum = 255 - suma - 1;
-    if(checksum == v_checksum)
-        return true;
-    else
-        return false;
+bool lin_stack::validateChecksum(const void *data, size_t len) {
+    uint8_t crc = calcChecksum(data, len - 1);
+    retnr(crc == static_cast<uint8_t *>(data)[len]);
 }
 
 int lin_stack::busWakeUp() {
@@ -289,8 +173,8 @@ int lin_stack::busWakeUp() {
 
 /* Create the Lin ID parity */
 #define BIT(data, shift) ((ident & (1 << shift)) >> shift)
-byte lin_stack::calcIdentParity(byte ident) {
-    byte p0 = BIT(ident, 0) ^ BIT(ident, 1) ^ BIT(ident, 2) ^ BIT(ident, 4);
-    byte p1 = ~(BIT(ident, 1) ^ BIT(ident, 3) ^ BIT(ident, 4) ^ BIT(ident, 5));
+uint8_t lin_stack::calcIdentParity(const uint8_t ident) const {
+    uint8_t p0 = BIT(ident, 0) ^ BIT(ident, 1) ^ BIT(ident, 2) ^ BIT(ident, 4);
+    uint8_t p1 = ~(BIT(ident, 1) ^ BIT(ident, 3) ^ BIT(ident, 4) ^ BIT(ident, 5));
     return (p0 | (p1 << 1)) << 6;
 }

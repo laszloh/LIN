@@ -48,8 +48,8 @@ public:
     // Methods
 
     // Writing data to bus
-    int write(byte add, byte data[], byte data_size); // write whole package
-    int writeRequest(byte add);                       // Write header only
+    int write(byte addr, byte data[], byte data_size); // write whole package
+    int writeRequest(byte addr);                       // Write header only
     int writeResponse(byte data[], byte data_size);   // Write response only
     int writeStream(byte data[], byte data_size);     // Writing user data to LIN bus
     int read(byte data[], byte data_size);            // read data from LIN bus, checksum and ident validation
@@ -60,15 +60,14 @@ public:
 
     // Private methods and variables
 private:
-    const unsigned long baud;  // 10417 is best for LIN Interface, most device should work
-    const unsigned int period; // in microseconds, 1s/10417
+    const uint16_t baud;  // 10417 is best for LIN Interface, most device should work
     Serial &channel;           // which channel should be used
     uint8_t ident;             // user defined Identification Byte
     int8_t wake_pin;
+
     void sleep_config();           // configuration of sleep pins
-    int serial_pause(int no_bits); // for generating Synch Break
-    boolean
+    void lin_break(); // for generating Synch Break
     validateParity(byte ident); // for validating Identification Byte, can be modified for validating parity
-    boolean validateChecksum(byte data[], byte data_size); // for validating Checksum Byte
+    bool validateChecksum(byte data[], byte data_size); // for validating Checksum Byte
     byte calcIdentParity(byte ident);
 };

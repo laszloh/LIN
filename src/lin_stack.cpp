@@ -50,8 +50,8 @@
 */
 
 // CONSTRUCTORS
-lin_stack::lin_stack(Serial &_channel, uint16_t _baud, int8_t _wakeup_pin, uint8_t _ident)
-    : channel(_channel), baud(_baud), wake_pin(_wakeup_pin), ident(_ident) {
+lin_stack::lin_stack(Serial &_channel, uint16_t _baud, int8_t _wake_pin, uint8_t _ident)
+    : baud(_baud), channel(_channel), ident(_ident), wake_pin(_wake_pin) {
     if(wake_pin >= 0)
         sleep_config(wake_pin); // Configurating Sleep pin for transceiver
 }
@@ -69,7 +69,7 @@ int lin_stack::write(byte ident, byte data[], byte data_size) {
     // Start interface
     sleep(1); // Go to Normal mode
     // Synch Break
-    serial_pause(13);
+    lin_break(13);
     // Send data via Serial interface
     if(ch == 1) {                  // For LIN1 or Serial1
         Serial1.begin(bound_rate); // config Serial
@@ -99,7 +99,7 @@ int lin_stack::writeRequest(byte ident) {
     // Start interface
     sleep(1); // Go to Normal mode
     // Synch Break
-    serial_pause(13);
+    lin_break();
     // Send data via Serial interface
     if(ch == 1) {                  // For LIN1 or Serial1
         Serial1.begin(bound_rate); // config Serial
@@ -143,7 +143,7 @@ int lin_stack::writeStream(byte data[], byte data_size) {
     // Start interface
     sleep(1); // Go to Normal mode
     // Synch Break
-    serial_pause(13);
+    lin_break();
     // Send data via Serial interface
     if(ch == 1) {                  // For LIN1 or Serial1
         Serial1.begin(bound_rate); // config Serial
@@ -222,30 +222,17 @@ int lin_stack::readStream(byte data[], byte data_size) {
 }
 
 // PRIVATE METHODS
-int lin_stack::serial_pause(int no_bits) {
-    // Calculate delay needed for 13 bits, depends on bound rate
-    unsigned int del
-        = period * no_bits; // delay for number of bits (no-bits) in microseconds, depends on period
-    if(ch == 2) {
-        PIOA->PIO_PER = PIO_PA13;  // enable PIO register
-        PIOA->PIO_OER = PIO_PA13;  // enable PA13 as output
-        PIOA->PIO_CODR = PIO_PA13; // clear PA13
-        delayMicroseconds(del);    // delay
-        PIOA->PIO_SODR = PIO_PA13; // set pin high
-        PIOA->PIO_ODR = PIO_PA13;  // enable PA13 as output
-        PIOA->PIO_PDR
-            = PIO_PA13; // clear configuration for PIO, needs to be done because Serial wont work with it
-    } else if(ch == 1) {
-        PIOA->PIO_PER = PIO_PA11;  // enable PIO register
-        PIOA->PIO_OER = PIO_PA11;  // enable PA11 as output
-        PIOA->PIO_CODR = PIO_PA11; // clear PA11
-        delayMicroseconds(del);    // delay
-        PIOA->PIO_SODR = PIO_PA11; // set pin high
-        PIOA->PIO_ODR = PIO_PA11;  // enable PA13 as output
-        PIOA->PIO_PDR
-            = PIO_PA11; // clear configuration for PIO, needs to be done because Serial wont work with it
-    }
-    return 1;
+void lin_stack::lin_break(uint8_t no_bits) {
+	// send the break field. Since LIN only specifies min 13bit, we'll send 0x00 at half baud
+    channel.flush();
+    channel.begin(baud/2);
+
+    // send the break field
+    channel.write(0x00);
+
+    // return to the high baud rate
+    channel.flush();
+    channel.begin(baud);
 }
 
 void lin_stack::sleep(bool sleep_state) {

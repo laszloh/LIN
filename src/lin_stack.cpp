@@ -32,7 +32,6 @@
  *  RoboSap, Institute of Technology, September 2016
  */
 
-#include <algorithm>
 #include <lin_stack.h>
 
 /* LIN PACKET:
@@ -51,10 +50,10 @@
 */
 
 // CONSTRUCTORS
-lin_stack::lin_stack(Serial &_channel, uint16_t _baud, int8_t _wake_pin, uint8_t _ident)
+lin_stack::lin_stack(HardwareSerial &_channel, uint16_t _baud, int8_t _wake_pin, uint8_t _ident)
     : baud(_baud), channel(_channel), ident(_ident), wake_pin(_wake_pin) {
     if(wake_pin >= 0)
-        sleep_config(wake_pin); // Configurating Sleep pin for transceiver
+        sleep_config(); // Configurating Sleep pin for transceiver
 }
 
 // PUBLIC METHODS
@@ -67,12 +66,12 @@ void lin_stack::write(const uint8_t ident, const void *data, size_t len) {
     channel.begin(baud);
     channel.write(0x55);
     channel.write(ident);
-    channel.write(data, len);
+    channel.write(static_cast<const char *>(data), len);
     channel.write(calcChecksum(data, len));
-    channel.fush();
+    channel.flush();
 }
 
-int lin_stack::writeRequest(const uint8_t ident) {
+void lin_stack::writeRequest(const uint8_t ident) {
     // Synch Break
     lin_break();
     // Send data via Serial interface
@@ -84,7 +83,7 @@ int lin_stack::writeRequest(const uint8_t ident) {
 
 void lin_stack::writeResponse(const void *data, size_t len) {
     channel.begin(baud);
-    channel.write(data, len);
+    channel.write(static_cast<const char *>(data), len);
     channel.write(calcChecksum(data, len));
     channel.flush();
 }
@@ -96,16 +95,16 @@ void lin_stack::writeStream(const void *data, size_t len) {
     channel.begin(baud);
     channel.write(0x55);
     channel.write(ident);
-    channel.write(data, len);
+    channel.write(static_cast<const char *>(data), len);
     channel.flush();
 }
 
 bool lin_stack::read(uint8_t *data, const size_t len, size_t *read) {
     size_t loc;
     if(read == nullptr)
-        read = loc;
+        read = &loc;
     *read = channel.readBytes(data, len);
-    return (validateParity(data[0]) && validateChecksum(data, std::min(len, *read)));
+    return (validateParity(data[0]) && validateChecksum(data, min(len, *read)));
 }
 
 int lin_stack::readStream(uint8_t *data, size_t len) { return channel.readBytes(data, len); }
@@ -131,19 +130,19 @@ void lin_stack::sleep_config() {
     digitalWrite(wake_pin, LOW);
 }
 
-bool lin_stack::validateParity(byte ident) { return (ident == identByte); }
+bool lin_stack::validateParity(uint8_t _ident) { return (_ident == ident); }
 
 uint8_t lin_stack::calcChecksum(const void *data, size_t len) {
-    uint8_t *p = static_cast<uint8_t *>(data);
+    const uint8_t *p = static_cast<const uint8_t *>(data);
     uint8_t ret = 0;
-    for(auto i = 0; i < data_size; i++)
+    for(size_t i = 0; i < len; i++)
         ret += p[i];
     return ~ret;
 }
 
 bool lin_stack::validateChecksum(const void *data, size_t len) {
     uint8_t crc = calcChecksum(data, len - 1);
-    retnr(crc == static_cast<uint8_t *>(data)[len]);
+    return (crc == static_cast<const uint8_t *>(data)[len]);
 }
 
 void lin_stack::busWakeUp() {
@@ -156,7 +155,7 @@ void lin_stack::busWakeUp() {
 }
 
 uint8_t lin_stack::generateIdent(const uint8_t addr) const {
-    return ((addr << 2) & 0x3f) | calcIdentParity(_addr);
+    return ((addr << 2) & 0x3f) | calcIdentParity(addr);
 }
 
 /* Create the Lin ID parity */

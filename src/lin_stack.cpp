@@ -146,27 +146,17 @@ bool lin_stack::validateChecksum(const void *data, size_t len) {
     retnr(crc == static_cast<uint8_t *>(data)[len]);
 }
 
-int lin_stack::busWakeUp() {
-    unsigned int del
-        = period * 10; // random delay for dominant signal, has to be in the timeframe from 250us ... 5ms
-    if(ch == 2) {
-        PIOA->PIO_PER = PIO_PA13;  // enable PIO register
-        PIOA->PIO_OER = PIO_PA13;  // enable PA13 as output
-        PIOA->PIO_CODR = PIO_PA13; // clear PA13
-        delayMicroseconds(del);    // delay
-        PIOA->PIO_SODR = PIO_PA13; // set pin high
-        PIOA->PIO_PDR
-            = PIO_PA13; // clear configuration for PIO, needs to be done because Serial wont work with it
-    } else if(ch == 1) {
-        PIOA->PIO_PER = PIO_PA11;  // enable PIO register
-        PIOA->PIO_OER = PIO_PA11;  // enable PA11 as output
-        PIOA->PIO_CODR = PIO_PA11; // clear PA11
-        delayMicroseconds(del);    // delay
-        PIOA->PIO_SODR = PIO_PA11; // set pin high
-        PIOA->PIO_PDR
-            = PIO_PA11; // clear configuration for PIO, needs to be done because Serial wont work with it
-    }
-    return 1;
+void lin_stack::busWakeUp() {
+    // generate a wakeup pattern by sending 9 zero bits, we use 19200 baud to generate a 480us pulse
+    channel.flush();
+    channel.begin(19200);
+    channel.write(0x00);
+    channel.flush();
+    channel.begin(baud);
+}
+
+uint8_t lin_stack::generateIdent(const uint8_t addr) const {
+    return ((addr << 2) & 0x3f) | calcIdentParity(_addr);
 }
 
 /* Create the Lin ID parity */

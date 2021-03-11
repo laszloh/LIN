@@ -55,8 +55,10 @@ public:
     bool read(uint8_t *data, const size_t len,
               size_t *read);                      // read data from LIN bus, checksum and ident validation
     int readStream(const void *data, size_t len); // read data from LIN bus
-    int busWakeUp();                              // send wakeup frame for waking up all bus participants
+    void busWakeUp();                             // send wakeup frame for waking up all bus participants
     void sleep(bool sleep_state); // method for controlling transceiver modes (false - sleep, true - normal)
+
+    uint8_t generateIdent(const uint8_t addr) const;
     uint8_t calcIdentParity(const uint8_t ident) const;
 
     // Private methods and variables

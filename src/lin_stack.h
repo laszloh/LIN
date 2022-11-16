@@ -59,7 +59,7 @@ public:
     void busWakeUp();                             // send wakeup frame for waking up all bus participants
     void sleep(bool sleep_state); // method for controlling transceiver modes (false - sleep, true - normal)
 
-    int setupSerial();  // set up Serial communication for receiving data.
+    void setupSerial();  // set up Serial communication for receiving data.
     int readStream(uint8_t *data, size_t len); // read data from LIN bus
 
     uint8_t generateIdent(const uint8_t addr) const;

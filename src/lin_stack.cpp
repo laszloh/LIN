@@ -107,7 +107,7 @@ bool lin_stack::read(uint8_t *data, const size_t len, size_t *read) {
     return (validateParity(data[0]) && validateChecksum(data, min(len, *read)));
 }
 
-int lin_stack::setupSerial() { channel.begin(baud); }
+void lin_stack::setupSerial() { channel.begin(baud); }
 
 int lin_stack::readStream(uint8_t *data, size_t len) { return channel.readBytes(data, len); }
 

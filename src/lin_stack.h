@@ -56,9 +56,11 @@ public:
     void writeStream(const void *data, size_t len);                // Writing user data to LIN bus
     bool read(uint8_t *data, const size_t len,
               size_t *read);                      // read data from LIN bus, checksum and ident validation
-    int readStream(uint8_t *data, size_t len); // read data from LIN bus
     void busWakeUp();                             // send wakeup frame for waking up all bus participants
     void sleep(bool sleep_state); // method for controlling transceiver modes (false - sleep, true - normal)
+
+    int setupSerial();  // set up Serial communication for receiving data.
+    int readStream(uint8_t *data, size_t len); // read data from LIN bus
 
     uint8_t generateIdent(const uint8_t addr) const;
     uint8_t calcIdentParity(const uint8_t ident) const;

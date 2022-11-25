@@ -33,6 +33,7 @@
  */
 
 #include <lin_stack.h>
+#include <avr/sfr_defs.h>
 
 /* LIN PACKET:
    It consist of:
@@ -108,6 +109,18 @@ bool lin_stack::read(uint8_t *data, const size_t len, size_t *read) {
 }
 
 void lin_stack::setupSerial() { channel.begin(baud); }
+
+bool lin_stack::waitBreak(uint32_t maxTimeout) {
+    const auto enterTime = millis();
+    while(bit_is_clear(UCSR0A, FE0)) {
+        const auto now = millis();
+        if(maxTimeout < UINT32_MAX &&  now - enterTime > maxTimeout) {
+            // we timed out
+            return false;
+        }
+    }
+    return true;
+}
 
 int lin_stack::readStream(uint8_t *data, size_t len) { return channel.readBytes(data, len); }
 

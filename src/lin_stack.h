@@ -60,10 +60,13 @@ public:
     void sleep(bool sleep_state); // method for controlling transceiver modes (false - sleep, true - normal)
 
     void setupSerial();  // set up Serial communication for receiving data.
+    bool waitBreak(uint32_t maxTimeout);
     int readStream(uint8_t *data, size_t len); // read data from LIN bus
 
     uint8_t generateIdent(const uint8_t addr) const;
     uint8_t calcIdentParity(const uint8_t ident) const;
+
+    static constexpr uint32_t MAX_DELAY = UINT32_MAX;
 
     // Private methods and variables
 private:

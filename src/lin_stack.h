@@ -79,6 +79,6 @@ private:
     void lin_break();    // for generating Synch Break
     bool validateParity(
         uint8_t ident); // for validating Identification Byte, can be modified for validating parity
-    bool validateChecksum(const void *data, size_t len); // for validating Checksum Byte
-    uint8_t calcChecksum(const void *data, size_t len);
+    bool validateChecksum(uint8_t ident, const void *data, size_t len); // for validating Checksum Byte
+    uint8_t calcChecksum(uint8_t ident, const void *data, size_t len);
 };
